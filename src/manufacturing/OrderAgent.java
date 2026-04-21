@@ -1,6 +1,7 @@
 package manufacturing;
 
 import jade.core.Agent;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -19,16 +20,34 @@ public class OrderAgent extends Agent {
             System.out.println("Order Agent " + getAID().getLocalName() + " is ready.");
             System.out.println("Looking for operation: " + requiredOperation);
 
-            // --- PHASE 2: Search the Directory Facilitator (DF) ---
+            // --- PHASE 3: Add the OneShot behaviour to find machines ---
+            addBehaviour(new FindMachineBehaviour());
+
+        } else {
+            System.out.println("WARNING: Order Agent " + getAID().getLocalName() + " started with NO operation argument!");
+        }
+    }
+
+    @Override
+    protected void takeDown() {
+        System.out.println("Order Agent " + getAID().getLocalName() + " terminating.");
+    }
+
+    // --- PHASE 3: Inner Class for OneShot Behaviour ---
+    private class FindMachineBehaviour extends OneShotBehaviour {
+        @Override
+        public void action() {
             DFAgentDescription template = new DFAgentDescription();
             ServiceDescription searchSd = new ServiceDescription();
             searchSd.setType("manufacturing-operation");
-            searchSd.setName(requiredOperation); // We only want machines offering our required operation
+            searchSd.setName(requiredOperation);
             template.addServices(searchSd);
 
             try {
-                System.out.println(getAID().getLocalName() + " is searching the DF...");
-                DFAgentDescription[] result = DFService.search(this, template);
+                System.out.println(myAgent.getLocalName() + " is searching the DF...");
+
+                // CRUCIAL CHANGE: We use 'myAgent' here instead of 'this'
+                DFAgentDescription[] result = DFService.search(myAgent, template);
 
                 if (result.length > 0) {
                     System.out.println("Success! Found " + result.length + " capable machine(s):");
@@ -41,14 +60,6 @@ public class OrderAgent extends Agent {
             } catch (FIPAException fe) {
                 fe.printStackTrace();
             }
-
-        } else {
-            System.out.println("WARNING: Order Agent " + getAID().getLocalName() + " started with NO operation argument!");
         }
-    }
-
-    @Override
-    protected void takeDown() {
-        System.out.println("Order Agent " + getAID().getLocalName() + " terminating.");
     }
 }
