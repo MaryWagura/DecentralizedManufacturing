@@ -6,6 +6,8 @@ import jade.domain.DFService;
 import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
+// --- PHASE 4 IMPORT ---
+import jade.lang.acl.ACLMessage;
 
 public class MachineAgent extends Agent {
 
@@ -20,7 +22,7 @@ public class MachineAgent extends Agent {
             System.out.println("Machine Agent " + getAID().getLocalName() + " is ready.");
             System.out.println("Capability: " + capability);
 
-            // --- Register with the DF ---
+            // Register with the DF
             DFAgentDescription dfd = new DFAgentDescription();
             dfd.setName(getAID());
             ServiceDescription sd = new ServiceDescription();
@@ -35,7 +37,7 @@ public class MachineAgent extends Agent {
                 fe.printStackTrace();
             }
 
-            // --- PHASE 3: Add the continuous listening behaviour ---
+            // Start listening for messages
             addBehaviour(new ProcessOrderBehaviour());
 
         } else {
@@ -54,15 +56,27 @@ public class MachineAgent extends Agent {
         System.out.println("Machine Agent " + getAID().getLocalName() + " terminating.");
     }
 
-    // --- PHASE 3: Inner Class for Cyclic Behaviour ---
+    // --- PHASE 4: Updated Cyclic Behaviour ---
     private class ProcessOrderBehaviour extends CyclicBehaviour {
         @Override
         public void action() {
-            System.out.println("Machine " + getAID().getLocalName() + " ready for jobs...");
+            // 1. Check the agent's message queue to see if anything arrived
+            ACLMessage receivedMsg = myAgent.receive();
 
-            // block() tells JADE to pause this behaviour until a new message arrives,
-            // preventing it from hogging the CPU by looping endlessly in the background.
-            block();
+            // 2. If we actually got a message...
+            if (receivedMsg != null) {
+                // 3. Check the "Performative" (the intent of the message).
+                // We are specifically looking for a CFP (Call For Proposal)
+                if (receivedMsg.getPerformative() == ACLMessage.CFP) {
+                    System.out.println(">>> " + myAgent.getLocalName() + " received a job request from: "
+                            + receivedMsg.getSender().getLocalName());
+                    System.out.println("    Message content: " + receivedMsg.getContent());
+                }
+            } else {
+                // 4. CRITICAL: If the inbox is empty, block the behaviour.
+                // This pauses the loop until a NEW message arrives, saving CPU power.
+                block();
+            }
         }
     }
 }

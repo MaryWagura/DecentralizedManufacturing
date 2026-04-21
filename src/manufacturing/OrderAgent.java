@@ -6,6 +6,8 @@ import jade.domain.DFService;
 import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
+// --- PHASE 4 IMPORT ---
+import jade.lang.acl.ACLMessage;
 
 public class OrderAgent extends Agent {
 
@@ -20,7 +22,7 @@ public class OrderAgent extends Agent {
             System.out.println("Order Agent " + getAID().getLocalName() + " is ready.");
             System.out.println("Looking for operation: " + requiredOperation);
 
-            // --- PHASE 3: Add the OneShot behaviour to find machines ---
+            // Add the behaviour to search and send messages
             addBehaviour(new FindMachineBehaviour());
 
         } else {
@@ -33,7 +35,7 @@ public class OrderAgent extends Agent {
         System.out.println("Order Agent " + getAID().getLocalName() + " terminating.");
     }
 
-    // --- PHASE 3: Inner Class for OneShot Behaviour ---
+    // --- PHASE 4: Updated OneShot Behaviour ---
     private class FindMachineBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
@@ -45,15 +47,28 @@ public class OrderAgent extends Agent {
 
             try {
                 System.out.println(myAgent.getLocalName() + " is searching the DF...");
-
-                // CRUCIAL CHANGE: We use 'myAgent' here instead of 'this'
                 DFAgentDescription[] result = DFService.search(myAgent, template);
 
                 if (result.length > 0) {
-                    System.out.println("Success! Found " + result.length + " capable machine(s):");
+                    System.out.println("Success! Found " + result.length + " capable machine(s).");
+
+                    // --- PHASE 4: Sending the ACL Message ---
+
+                    // 1. Create a new message with the CFP (Call for Proposal) performative
+                    ACLMessage cfpMsg = new ACLMessage(ACLMessage.CFP);
+
+                    // 2. Add all the machines we found as receivers of this message
                     for (int i = 0; i < result.length; ++i) {
-                        System.out.println(" - " + result[i].getName().getLocalName());
+                        cfpMsg.addReceiver(result[i].getName());
                     }
+
+                    // 3. Set the actual text payload of the message
+                    cfpMsg.setContent("Job_Request");
+
+                    // 4. Send the message out into the JADE environment
+                    myAgent.send(cfpMsg);
+                    System.out.println("<<< " + myAgent.getLocalName() + " sent CFP to the found machines.");
+
                 } else {
                     System.out.println("Failed: No machines found currently offering " + requiredOperation);
                 }
