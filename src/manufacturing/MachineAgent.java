@@ -1,6 +1,7 @@
 package manufacturing;
 
 import jade.core.Agent;
+import jade.core.behaviours.CyclicBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -19,13 +20,12 @@ public class MachineAgent extends Agent {
             System.out.println("Machine Agent " + getAID().getLocalName() + " is ready.");
             System.out.println("Capability: " + capability);
 
-            // --- PHASE 2: Register with the Directory Facilitator (DF) ---
+            // --- Register with the DF ---
             DFAgentDescription dfd = new DFAgentDescription();
             dfd.setName(getAID());
-
             ServiceDescription sd = new ServiceDescription();
             sd.setType("manufacturing-operation");
-            sd.setName(capability); // Name the service after its capability (e.g., "Drilling")
+            sd.setName(capability);
             dfd.addServices(sd);
 
             try {
@@ -35,6 +35,9 @@ public class MachineAgent extends Agent {
                 fe.printStackTrace();
             }
 
+            // --- PHASE 3: Add the continuous listening behaviour ---
+            addBehaviour(new ProcessOrderBehaviour());
+
         } else {
             System.out.println("WARNING: Machine Agent " + getAID().getLocalName() + " started with NO capability argument!");
         }
@@ -42,14 +45,24 @@ public class MachineAgent extends Agent {
 
     @Override
     protected void takeDown() {
-        // --- PHASE 2: Deregister from the DF on shutdown ---
         try {
             DFService.deregister(this);
             System.out.println(getAID().getLocalName() + " deregistered from the DF.");
         } catch (FIPAException fe) {
             fe.printStackTrace();
         }
-
         System.out.println("Machine Agent " + getAID().getLocalName() + " terminating.");
+    }
+
+    // --- PHASE 3: Inner Class for Cyclic Behaviour ---
+    private class ProcessOrderBehaviour extends CyclicBehaviour {
+        @Override
+        public void action() {
+            System.out.println("Machine " + getAID().getLocalName() + " ready for jobs...");
+
+            // block() tells JADE to pause this behaviour until a new message arrives,
+            // preventing it from hogging the CPU by looping endlessly in the background.
+            block();
+        }
     }
 }
