@@ -1,27 +1,55 @@
 package manufacturing;
 
 import jade.core.Agent;
+import jade.domain.DFService;
+import jade.domain.FIPAException;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
 
 public class MachineAgent extends Agent {
-    // Class variable to store the machine's capability
+
     private String capability;
 
     @Override
     protected void setup() {
-        // Read the arguments passed to the agent
         Object[] args = getArguments();
 
         if (args != null && args.length > 0) {
             capability = (String) args[0];
-            System.out.println("Machine Agent " + getAID().getName() + " is ready.");
-            System.out.println("Registered capability: " + capability);
+            System.out.println("Machine Agent " + getAID().getLocalName() + " is ready.");
+            System.out.println("Capability: " + capability);
+
+            // --- PHASE 2: Register with the Directory Facilitator (DF) ---
+            DFAgentDescription dfd = new DFAgentDescription();
+            dfd.setName(getAID());
+
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("manufacturing-operation");
+            sd.setName(capability); // Name the service after its capability (e.g., "Drilling")
+            dfd.addServices(sd);
+
+            try {
+                DFService.register(this, dfd);
+                System.out.println(getAID().getLocalName() + " successfully registered in the DF.");
+            } catch (FIPAException fe) {
+                fe.printStackTrace();
+            }
+
         } else {
-            System.out.println("WARNING: Machine Agent " + getAID().getName() + " started with NO capability argument!");
+            System.out.println("WARNING: Machine Agent " + getAID().getLocalName() + " started with NO capability argument!");
         }
     }
 
     @Override
     protected void takeDown() {
-        System.out.println("Machine Agent " + getAID().getName() + " terminating.");
+        // --- PHASE 2: Deregister from the DF on shutdown ---
+        try {
+            DFService.deregister(this);
+            System.out.println(getAID().getLocalName() + " deregistered from the DF.");
+        } catch (FIPAException fe) {
+            fe.printStackTrace();
+        }
+
+        System.out.println("Machine Agent " + getAID().getLocalName() + " terminating.");
     }
 }
